@@ -1,0 +1,121 @@
+name: Build Android AAB and APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    name: Build Production AAB & APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Node Dependencies
+        run: |
+          npm install --legacy-peer-deps
+          npm install -D @capacitor/cli @capacitor/core @capacitor/android @capacitor-community/admob --legacy-peer-deps
+
+      - name: Build Web Assets (Vite)
+        run: npm run build
+
+      - name: Initialize & Sync Capacitor Android
+        run: |
+          npx cap add android || true
+          npx cap sync android
+
+      - name: Configure AdMob in AndroidManifest.xml
+        run: |
+          MANIFEST_FILE="android/app/src/main/AndroidManifest.xml"
+          if [ -f "$MANIFEST_FILE" ]; then
+            # Add AdMob App ID meta-data if not present
+            if ! grep -q "com.google.android.gms.ads.APPLICATION_ID" "$MANIFEST_FILE"; then
+              sed -i '/<\/application>/i \        <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-4743103949509903~3941658082"/>' "$MANIFEST_FILE"
+            fi
+            # Add AD_ID permission for Android 13+
+            if ! grep -q "com.google.android.gms.permission.AD_ID" "$MANIFEST_FILE"; then
+              sed -i '/<\/manifest>/i \    <uses-permission android:name="com.google.android.gms.permission.AD_ID"/>' "$MANIFEST_FILE"
+            fi
+          fi
+
+      - name: Generate Release Keystore
+        run: |
+          mkdir -p keystore
+          keytool -genkeypair -v \
+            -keystore keystore/release.jks \
+            -alias playconsole \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass "PlayStorePass2026!" \
+            -keypass "PlayStorePass2026!" \
+            -dname "CN=GeminiUsage, OU=Mobile, O=AppStudio, L=City, ST=State, C=US"
+
+      - name: Build Release APK and AAB Bundle
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew bundleRelease
+          ./gradlew assembleRelease
+
+      - name: Sign Android App Bundle (AAB) for Google Play Console
+        run: |
+          UNSIGNED_AAB=$(find android/app/build/outputs/bundle -name "*.aab" | head -n 1)
+          if [ -f "$UNSIGNED_AAB" ]; then
+            jarsigner -verbose \
+              -sigalg SHA256withRSA \
+              -digestalg SHA-256 \
+              -keystore keystore/release.jks \
+              -storepass "PlayStorePass2026!" \
+              -keypass "PlayStorePass2026!" \
+              "$UNSIGNED_AAB" playconsole
+            cp "$UNSIGNED_AAB" ./production-release.aab
+            echo "Successfully signed production-release.aab"
+          fi
+
+      - name: Sign APK for Testing
+        run: |
+          UNSIGNED_APK=$(find android/app/build/outputs/apk -name "*.apk" | head -n 1)
+          if [ -f "$UNSIGNED_APK" ]; then
+            jarsigner -verbose \
+              -sigalg SHA256withRSA \
+              -digestalg SHA-256 \
+              -keystore keystore/release.jks \
+              -storepass "PlayStorePass2026!" \
+              -keypass "PlayStorePass2026!" \
+              "$UNSIGNED_APK" playconsole
+            cp "$UNSIGNED_APK" ./app-testing-release.apk
+            echo "Successfully signed app-testing-release.apk"
+          fi
+
+      - name: Upload Google Play AAB Artifact (For Production)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Google-Play-Release-AAB
+          path: production-release.aab
+          if-no-files-found: warn
+
+      - name: Upload Testing APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Android-Testing-APK
+          path: app-testing-release.apk
+          if-no-files-found: warn

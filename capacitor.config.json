@@ -1,0 +1,17 @@
+{
+  "appId": "com.gemini.usagemonitor",
+  "appName": "Gemini Usage Monitor",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true
+  },
+  "plugins": {
+    "AdMob": {
+      "appId": "ca-app-pub-4743103949509903~3941658082",
+      "testingDevices": ["EMULATOR"],
+      "initializeForTesting": false
+    }
+  }
+}

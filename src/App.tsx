@@ -20,12 +20,15 @@ import { PlaygroundTab } from './components/PlaygroundTab';
 import { ModelsCatalogTab } from './components/ModelsCatalogTab';
 import { SessionAuditTab } from './components/SessionAuditTab';
 import { BillingGuideTab } from './components/BillingGuideTab';
+import { PlayConsoleTab } from './components/PlayConsoleTab';
+import { AdMobBanner } from './components/AdMobBanner';
+import { Smartphone } from 'lucide-react';
 
 const LOCAL_STORAGE_KEY = 'gemini_usage_monitor_logs_v1';
 const LOCAL_STORAGE_BUDGET_KEY = 'gemini_usage_monitor_budget_v1';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'probe' | 'calculator' | 'playground' | 'models' | 'audit' | 'guide'>('probe');
+  const [activeTab, setActiveTab] = useState<'probe' | 'calculator' | 'playground' | 'models' | 'audit' | 'guide' | 'playconsole'>('playconsole');
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [models, setModels] = useState<ModelSpec[]>([]);
   const [probeResult, setProbeResult] = useState<ProbeResult | null>(null);
@@ -200,6 +203,7 @@ export default function App() {
   }, [fetchStatus, fetchModels, handleRunProbe]);
 
   const navTabs = [
+    { id: 'playconsole', label: 'Google Play & AAB Export', icon: Smartphone },
     { id: 'probe', label: 'Quota & Health Check', icon: ShieldCheck },
     { id: 'calculator', label: 'Token & Cost Calculator', icon: Calculator },
     { id: 'playground', label: 'Live Test & Telemetry', icon: Terminal },
@@ -254,6 +258,8 @@ export default function App() {
 
         {/* Active Tab Views */}
         <div>
+          {activeTab === 'playconsole' && <PlayConsoleTab />}
+
           {activeTab === 'probe' && (
             <LiveProbeTab
               status={status}
@@ -292,6 +298,9 @@ export default function App() {
           {activeTab === 'guide' && <BillingGuideTab />}
         </div>
       </main>
+
+      {/* Sticky Google AdMob Banner */}
+      <AdMobBanner onOpenReleaseGuide={() => setActiveTab('playconsole')} />
 
       {/* Footer */}
       <footer className="mt-auto border-t border-slate-900 bg-slate-950 py-4 text-center text-xs text-slate-500">
