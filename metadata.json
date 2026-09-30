@@ -1,0 +1,6 @@
+{
+  "name": "Gemini API & AI Studio Usage Monitor",
+  "description": "Real-time usage tracker, token counter, quota health inspector, and cost estimation dashboard for Google AI Studio and Gemini models.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
